@@ -1,0 +1,626 @@
+---
+title: "Análise - Lígia Garcia"
+author: Rafael N. Magalhães
+date: "`r format(Sys.time(), '%d de %B, %Y')`"
+output:
+  html_document:
+    code_folding: hide
+    collapsed: no
+    theme: spacelab
+    toc: yes
+    toc_float: yes
+---
+
+```{r setup, include=FALSE}
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(forcats)
+library(Cairo)
+library(janitor)
+library(here)
+library(blandr) # Gráficos Bland-Altman
+library(ggcorrplot)
+
+
+here() # dir de trabalho
+
+# Leitura e limpeza do banco
+bd <- read_excel("TABELA IAPSI.xlsx") %>% 
+  clean_names()
+
+# tema dos gráficos
+theme_set(theme_classic())
+```
+
+## Consistência 
+
+### Intraobservador {.tabset .tabset-fade .tabset-pills}
+
+#### Bland-Altman
+```{r echo=FALSE, message=FALSE, warning=FALSE, dev='CairoPNG'}
+blandr.draw(bd$iapsi_a1_total, bd$iapsi_a2_total,
+            ciDisplay = FALSE, 
+            ciShading = FALSE,
+            plotProportionalBias = TRUE) +
+  labs(
+    title = "Gráfico Bland-Altman - Intraobservador",
+    caption = "Fonte: elaboração própria. \nNúmero de observações: 56.",
+    fill = "",
+    x = "Média intraobservador",
+    y = "Diferença intraobservador"
+  ) +
+  theme(plot.subtitle = element_text(face = "italic"),
+        plot.title = element_text(hjust = 0))
+  
+```
+
+#### Correlação
+```{r echo=FALSE, message=FALSE, warning=FALSE, dev='CairoPNG'}
+ggplot(bd, aes(x = iapsi_a1_total, y = iapsi_a2_total)) +
+  geom_point() +
+  geom_smooth(method = lm) +
+  labs(
+    title = "Correlação Intraobservador",
+    subtitle = "Comparação entre as pontuações obtidas - intraobservador",
+    caption = "Fonte: elaboração própria. \nNúmero de observações: 56.",
+    fill = "",
+    x = "IAPSI A1",
+    y = "IAPSI A2"
+  ) +
+  theme(plot.subtitle = element_text(face = "italic"))
+
+```
+
+#### Estatísticas
+```{r echo=FALSE, message=FALSE, warning=FALSE, dev='CairoPNG'}
+blandr.output.text(bd$iapsi_a1_total, bd$iapsi_a2_total)
+```
+
+
+### Interobservador {.tabset .tabset-fade .tabset-pills}
+
+#### Bland-Altman
+```{r echo=FALSE, message=FALSE, warning=FALSE, dev='CairoPNG'}
+blandr.draw(bd$iapsi_a1_total, bd$iapsi_b_total,
+            ciDisplay = FALSE, 
+            ciShading = FALSE,
+            plotProportionalBias = TRUE) +
+  labs(
+    title = "Gráfico Bland-Altman - Interobservador",
+    caption = "Fonte: elaboração própria. \nNúmero de observações: 56.",
+    fill = "",
+    x = "Média interobservador",
+    y = "Diferença interobservador"
+  ) +
+  theme(plot.subtitle = element_text(face = "italic"),
+        plot.title = element_text(hjust = 0))
+  
+```
+
+#### Correlação
+```{r echo=FALSE, message=FALSE, warning=FALSE, dev='CairoPNG'}
+ggplot(bd, aes(x = iapsi_a1_total, y = iapsi_b_total)) +
+  geom_point() +
+  geom_smooth(method = lm) +
+  labs(
+    title = "Correlação Interobservador",
+    subtitle = "Comparação entre as pontuações obtidas - interobservador",
+    caption = "Fonte: elaboração própria. \nNúmero de observações: 56.",
+    fill = "",
+    x = "IAPSI A1",
+    y = "IAPSI B"
+  ) +
+  theme(plot.subtitle = element_text(face = "italic"))
+
+```
+
+#### Estatísticas
+```{r echo=FALSE, message=FALSE, warning=FALSE, dev='CairoPNG'}
+blandr.output.text(bd$iapsi_a1_total, bd$iapsi_b_total)
+```
+
+## Correlogramas {.tabset .tabset-fade .tabset-pills}
+
+### IAPSI/GPM/Saúde
+```{r echo=FALSE, message=FALSE, warning=FALSE, dev='CairoPNG'}
+m1 <- bd %>%
+  mutate(auto_percepcao_de_saude = case_when(auto_percepcao_de_saude == "Ruim" ~ 1,
+                                             auto_percepcao_de_saude == "Regular" ~ 2,
+                                             auto_percepcao_de_saude == "Boa" ~ 3)) %>% 
+  select(auto_percepcao_de_saude, 
+         gpm_corrigido, 
+         iapsi_b_total,
+         iapsi_a2_total,
+         iapsi_a1_total)
+
+cor <- round(cor(m1), 2)
+
+colnames(cor) <- rownames(cor) <- c("Percepção Saúde",
+                                    "GPM Corrigido",
+                                    "IAPSI B",
+                                    "IAPSI A2",
+                                    "IAPSI A1")
+
+ggcorrplot(cor, 
+           hc.order = FALSE,
+           type = "upper", 
+           method = "square", 
+           colors = c("red4", "white", "cadetblue4"), 
+           legend.title = "Correlação",
+           lab = FALSE,
+           lab_col = "black", 
+           lab_size = 3,
+           tl.cex = 10,
+           outline.color = "gray60",
+           ggtheme = theme_classic) +
+  labs(title = "Correlograma",
+       subtitle = "Asociação entre as medidas utilizadas no estudo") +
+  theme(plot.subtitle = element_text(face = "italic"))
+
+```
+
+### Componentes do IAPSI
+```{r echo=FALSE, message=FALSE, warning=FALSE, dev='CairoPNG'}
+m2 <- bd %>%
+  select(iapsi_a1_o_quanto_voce_esta_satisfeito_com_o_uso_do_seu_tempo_livre,
+         iapsi_a1_o_quanto_voce_esta_satisfeito_com_os_seus_relacionamentos_pessoais,
+         iapsi_a1_o_quanto_voce_esta_satisfeito_com_o_seu_meio_de_transporte,
+         iapsi_a1_o_quanto_voce_esta_satisfeito_com_a_sua_participacao_em_eventos_comunitarios,
+         iapsi_a1_o_quanto_voce_esta_satisfeito_com_as_suas_atividades_domesticas,
+         iapsi_a1_total)
+
+cor <- round(cor(m2), 2)
+
+colnames(cor) <- rownames(cor) <- c("Tempo livre",
+                                    "Relacionamentos pessoais",
+                                    "Meio de transporte",
+                                    "Eventos comunitários",
+                                    "Atividades domésticas",
+                                    "IAPSI Total")
+
+ggcorrplot(cor, 
+           hc.order = FALSE,
+           type = "upper", 
+           method = "square", 
+           colors = c("red4", "white", "cadetblue4"), 
+           legend.title = "Correlação",
+           lab = FALSE,
+           lab_col = "black", 
+           lab_size = 3,
+           tl.cex = 10,
+           outline.color = "gray60",
+           ggtheme = theme_classic) +
+  labs(title = "Correlograma",
+       subtitle = "Asociação entre as medidas utilizadas no estudo") +
+  theme(plot.subtitle = element_text(face = "italic"))
+
+```
+
+## Distribuições IAPSI {.tabset .tabset-fade .tabset-pills}
+
+### Total
+```{r echo=FALSE, message=FALSE, warning=FALSE, dev='CairoPNG'}
+ggplot(subset(bd, !is.na(iapsi_a1_total))) +
+  geom_density(aes(x = iapsi_a1_total), fill = "black", alpha = .1, size = 1) +
+  geom_rug(aes(x = iapsi_a1_total, y = 0), position = position_jitter(height = 0, width = .2), sides = "b") +
+  labs(title = "IAPSI Total",
+       subtitle = "Distribuição do IAPSI total dos respondentes",
+       caption = "Fonte: elaboração própria. \nNúmero de observações: 56.",
+       fill = "IAPSI Total",
+       x = NULL,
+       y = NULL) +
+  scale_x_continuous(breaks = seq(10, 24, 1)) +
+  theme(plot.subtitle = element_text(face = "italic"),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.ticks.x = element_blank())
+
+```
+
+### Por idade
+```{r echo=FALSE, message=FALSE, warning=FALSE, dev='CairoPNG'}
+ggplot(subset(bd, !is.na(iapsi_a1_total))) +
+  geom_density(aes(x = iapsi_a1_total, 
+                   fill = factor(idade, 
+                          levels = c("60-80",
+                                     "81-90",
+                                     "91-100",
+                                     ">100"))), 
+               alpha = .4, size = 1) +
+  geom_rug(aes(x = iapsi_a1_total, y = 0), position = position_jitter(height = 0, width = .2), sides = "b") +
+  labs(title = "IAPSI Total por idade",
+       subtitle = "Distribuição do IAPSI total dos respondentes, de acordo com cada faixa etária",
+       caption = "Fonte: elaboração própria. \nNúmero de observações: 56.",
+       fill = "",
+       x = NULL,
+       y = NULL) +
+  scale_x_continuous(breaks = seq(10, 24, 1)) +
+  theme(plot.subtitle = element_text(face = "italic"),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position = "top")
+
+```
+
+### Por gênero
+```{r echo=FALSE, message=FALSE, warning=FALSE, dev='CairoPNG'}
+ggplot(subset(bd, !is.na(iapsi_a1_total))) +
+  geom_density(aes(x = iapsi_a1_total, 
+                   fill = factor(genero, 
+                          levels = c("Feminino",
+                                     "Masculino"))), 
+               alpha = .4, size = 1) +
+  geom_rug(aes(x = iapsi_a1_total, y = 0), position = position_jitter(height = 0, width = .2), sides = "b") +
+  labs(title = "IAPSI Total por gênero",
+       subtitle = "Distribuição do IAPSI total dos respondentes, de acordo com o gênero",
+       caption = "Fonte: elaboração própria. \nNúmero de observações: 56.",
+       fill = "",
+       x = NULL,
+       y = NULL) +
+  scale_x_continuous(breaks = seq(10, 24, 1)) +
+  theme(plot.subtitle = element_text(face = "italic"),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position = "top")
+
+```
+
+### Por raça
+```{r echo=FALSE, message=FALSE, warning=FALSE, dev='CairoPNG'}
+ggplot(subset(bd, !is.na(iapsi_a1_total))) +
+  geom_density(aes(x = iapsi_a1_total, 
+                   fill = fct_infreq(raca)), 
+               alpha = .4, size = 1) +
+  geom_rug(aes(x = iapsi_a1_total, y = 0), position = position_jitter(height = 0, width = .2), sides = "b") +
+  labs(title = "IAPSI Total por raça",
+       subtitle = "Distribuição do IAPSI total dos respondentes, de acordo com a raça",
+       caption = "Fonte: elaboração própria. \nNúmero de observações: 56.",
+       fill = "",
+       x = NULL,
+       y = NULL) +
+  scale_x_continuous(breaks = seq(10, 24, 1)) +
+  theme(plot.subtitle = element_text(face = "italic"),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position = "top")
+
+```
+
+### Por escolaridade
+```{r echo=FALSE, message=FALSE, warning=FALSE, dev='CairoPNG'}
+ggplot(subset(bd, !is.na(iapsi_a1_total))) +
+  geom_density(aes(x = iapsi_a1_total, 
+                   fill = factor(escolaridade, 
+                          levels = c("Analfabeto",
+                                     "1-4 Anos",
+                                     "5-8 Anos",
+                                     "9-11 Anos",
+                                     "> 11 Anos"))), 
+               alpha = .4, size = 1) +
+  geom_rug(aes(x = iapsi_a1_total, y = 0), position = position_jitter(height = 0, width = .2), sides = "b") +
+  labs(title = "IAPSI Total por escolaridade",
+       subtitle = "Distribuição do IAPSI total dos respondentes, de acordo com o nível de escolaridade",
+       caption = "Fonte: elaboração própria. \nNúmero de observações: 56.",
+       fill = "",
+       x = NULL,
+       y = NULL) +
+  scale_x_continuous(breaks = seq(10, 24, 1)) +
+  theme(plot.subtitle = element_text(face = "italic"),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position = "top")
+
+```
+
+
+## Características sociodemográficas
+
+### Idade
+```{r echo=FALSE, message=FALSE, warning=FALSE, dev='CairoPNG'}
+ggplot(subset(bd, !is.na(idade)),
+       aes(x = factor(idade,
+                      levels = c(">100",
+                                 "91-100",
+                                 "81-90",
+                                 "60-80")))) +
+    geom_bar(aes(y = prop.table(..count..) * 100 + 3)) +
+    labs(title = "Idade",
+         subtitle = "Distribuição dos respondentes por faixa etária",
+         caption = "Fonte: elaboração própria. \nNúmero de observações: 56.",
+         x = NULL,
+         y = NULL) +
+    geom_text(stat = "count", 
+              aes(y = prop.table(..count..) * 100, 
+                  label = paste0(round(prop.table(..count..) * 100, 1), '%')), 
+              hjust = 0, 
+              color = "white",
+              size = 3) +
+    coord_flip() +
+    theme(plot.subtitle = element_text(face = "italic"),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank())
+
+```
+
+### Gênero
+```{r echo=FALSE, message=FALSE, warning=FALSE, dev='CairoPNG'}
+ggplot(subset(bd, !is.na(genero)),
+       aes(x = factor(genero,
+                      levels = c("Masculino",
+                                 "Feminino")))) +
+    geom_bar(aes(y = prop.table(..count..) * 100)) +
+    labs(title = "Gênero",
+         subtitle = "Distribuição dos respondentes por gênero",
+         caption = "Fonte: elaboração própria. \nNúmero de observações: 56.",
+         x = NULL,
+         y = NULL) +
+    geom_text(stat = "count", 
+              aes(y = prop.table(..count..) * 100, 
+                  label = paste0(round(prop.table(..count..) * 100, 1), '%')), 
+              hjust = 1.2, 
+              color = "white",
+              size = 4) +
+    coord_flip() +
+    theme(plot.subtitle = element_text(face = "italic"),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank())
+
+```
+
+### Raça
+```{r echo=FALSE, message=FALSE, warning=FALSE, dev='CairoPNG'}
+ggplot(subset(bd, !is.na(raca)),
+       aes(x = fct_rev(fct_infreq(raca)))) +
+    geom_bar(aes(y = prop.table(..count..) * 100 + 5)) +
+    labs(title = "Raça",
+         subtitle = "Distribuição dos respondentes por raça",
+         caption = "Fonte: elaboração própria. \nNúmero de observações: 56.",
+         x = NULL,
+         y = NULL) +
+    geom_text(stat = "count", 
+              aes(y = prop.table(..count..) * 100, 
+                  label = paste0(round(prop.table(..count..) * 100, 1), '%')), 
+              hjust = -.1, 
+              color = "white",
+              size = 3) +
+    coord_flip() +
+    theme(plot.subtitle = element_text(face = "italic"),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank())
+
+```
+
+### Escolaridade
+```{r echo=FALSE, message=FALSE, warning=FALSE, dev='CairoPNG'}
+ggplot(subset(bd, !is.na(escolaridade)),
+       aes(x = factor(escolaridade,
+                      levels = c("> 11 Anos",
+                                 "9-11 Anos",
+                                 "5-8 Anos",
+                                 "1-4 Anos",
+                                 "Analfabeto")))) +
+    geom_bar(aes(y = prop.table(..count..) * 100 + 3)) +
+    labs(title = "Escolaridade",
+         subtitle = "Distribuição dos respondentes por escolaridade",
+         caption = "Fonte: elaboração própria. \nNúmero de observações: 56.",
+         x = NULL,
+         y = NULL) +
+    geom_text(stat = "count", 
+              aes(y = prop.table(..count..) * 100, 
+                  label = paste0(round(prop.table(..count..) * 100, 1), '%')), 
+              hjust = 0, 
+              color = "white",
+              size = 3) +
+    coord_flip() +
+    theme(plot.subtitle = element_text(face = "italic"),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank())
+
+```
+
+## Características clínicas
+
+### Comorbidades
+```{r echo=FALSE, message=FALSE, warning=FALSE, dev='CairoPNG'}
+ggplot(subset(bd, !is.na(comorbidades)),
+       aes(x = factor(comorbidades,
+                      levels = c(">10",
+                                 "6-10",
+                                 "0-5")))) +
+    geom_bar(aes(y = prop.table(..count..) * 100)) +
+    labs(title = "Comorbidades",
+         subtitle = "Distribuição dos respondentes por número de comorbidades",
+         caption = "Fonte: elaboração própria. \nNúmero de observações: 56.",
+         x = NULL,
+         y = NULL) +
+    geom_text(stat = "count", 
+              aes(y = prop.table(..count..) * 100, 
+                  label = paste0(round(prop.table(..count..) * 100, 1), '%')), 
+              hjust = 1.2, 
+              color = "white",
+              size = 3.5) +
+    coord_flip() +
+    theme(plot.subtitle = element_text(face = "italic"),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank())
+
+```
+
+### Medicações
+```{r echo=FALSE, message=FALSE, warning=FALSE, dev='CairoPNG'}
+ggplot(subset(bd, !is.na(medicacoes)),
+       aes(x = factor(medicacoes,
+                      levels = c(">10",
+                                 "6-10",
+                                 "0-5")))) +
+    geom_bar(aes(y = prop.table(..count..) * 100)) +
+    labs(title = "Medicações",
+         subtitle = "Distribuição dos respondentes por número de medicações",
+         caption = "Fonte: elaboração própria. \nNúmero de observações: 56.",
+         x = NULL,
+         y = NULL) +
+    geom_text(stat = "count", 
+              aes(y = prop.table(..count..) * 100, 
+                  label = paste0(round(prop.table(..count..) * 100, 1), '%')), 
+              hjust = 1.2, 
+              color = "white",
+              size = 3.5) +
+    coord_flip() +
+    theme(plot.subtitle = element_text(face = "italic"),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank())
+
+```
+
+### Auto-percepção de saúde
+```{r echo=FALSE, message=FALSE, warning=FALSE, dev='CairoPNG'}
+ggplot(subset(bd, !is.na(auto_percepcao_de_saude)),
+       aes(x = factor(auto_percepcao_de_saude,
+                      levels = c("Ruim",
+                                 "Regular",
+                                 "Boa")))) +
+    geom_bar(aes(y = prop.table(..count..) * 100)) +
+    labs(title = "Medicações",
+         subtitle = "Distribuição dos respondentes por número de medicações",
+         caption = "Fonte: elaboração própria. \nNúmero de observações: 56.",
+         x = NULL,
+         y = NULL) +
+    geom_text(stat = "count", 
+              aes(y = prop.table(..count..) * 100, 
+                  label = paste0(round(prop.table(..count..) * 100, 1), '%')), 
+              hjust = 1.2, 
+              color = "white",
+              size = 3.5) +
+    coord_flip() +
+    theme(plot.subtitle = element_text(face = "italic"),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank())
+
+```
+
+
+### GPM Corrigido {.tabset .tabset-fade .tabset-pills}
+
+#### Total
+```{r echo=FALSE, message=FALSE, warning=FALSE, dev='CairoPNG'}
+ggplot(subset(bd, !is.na(gpm_corrigido))) +
+  geom_density(aes(x = gpm_corrigido), fill = "black", alpha = .1, size = 1) +
+  geom_rug(aes(x = gpm_corrigido, y = 0), position = position_jitter(height = 0, width = .2), sides = "b") +
+  labs(title = "GPM Corrigido",
+       subtitle = "Distribuição do GPM corrigido dos respondentes",
+       caption = "Fonte: elaboração própria. \nNúmero de observações: 56.",
+       fill = "GPM Corrigido",
+       x = NULL,
+       y = NULL) +
+  scale_x_continuous(breaks = seq(0, 100, 10)) +
+  theme(plot.subtitle = element_text(face = "italic"),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.ticks.x = element_blank())
+
+```
+
+#### Por idade
+```{r echo=FALSE, message=FALSE, warning=FALSE, dev='CairoPNG'}
+ggplot(subset(bd, !is.na(gpm_corrigido))) +
+  geom_density(aes(x = gpm_corrigido, 
+                   fill = factor(idade, 
+                          levels = c("60-80",
+                                     "81-90",
+                                     "91-100",
+                                     ">100"))), 
+               alpha = .4, size = 1) +
+  geom_rug(aes(x = gpm_corrigido, y = 0), position = position_jitter(height = 0, width = .2), sides = "b") +
+  labs(title = "GPM (corrigido) por idade",
+       subtitle = "Distribuição do GPM corrigido dos respondentes, de acordo com cada faixa etária",
+       caption = "Fonte: elaboração própria. \nNúmero de observações: 56.",
+       fill = "",
+       x = NULL,
+       y = NULL) +
+  scale_x_continuous(breaks = seq(0, 100, 10)) +
+  theme(plot.subtitle = element_text(face = "italic"),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position = "top")
+
+```
+
+#### Por gênero
+```{r echo=FALSE, message=FALSE, warning=FALSE, dev='CairoPNG'}
+ggplot(subset(bd, !is.na(gpm_corrigido))) +
+  geom_density(aes(x = gpm_corrigido, 
+                   fill = factor(genero, 
+                          levels = c("Feminino",
+                                     "Masculino"))), 
+               alpha = .4, size = 1) +
+  geom_rug(aes(x = gpm_corrigido, y = 0), position = position_jitter(height = 0, width = .2), sides = "b") +
+  labs(title = "GPM (corrigido) por gênero",
+       subtitle = "Distribuição do GPM corrigido dos respondentes, de acordo com o gênero",
+       caption = "Fonte: elaboração própria. \nNúmero de observações: 56.",
+       fill = "",
+       x = NULL,
+       y = NULL) +
+  scale_x_continuous(breaks = seq(0, 100, 10)) +
+  theme(plot.subtitle = element_text(face = "italic"),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position = "top")
+
+```
+
+#### Por raça
+```{r echo=FALSE, message=FALSE, warning=FALSE, dev='CairoPNG'}
+ggplot(subset(bd, !is.na(gpm_corrigido))) +
+  geom_density(aes(x = gpm_corrigido, 
+                   fill = fct_infreq(raca)), 
+               alpha = .4, size = 1) +
+  geom_rug(aes(x = gpm_corrigido, y = 0), position = position_jitter(height = 0, width = .2), sides = "b") +
+  labs(title = "GPM (corrigido) por raça",
+       subtitle = "Distribuição do GPM corrigido dos respondentes, de acordo com a raça",
+       caption = "Fonte: elaboração própria. \nNúmero de observações: 56.",
+       fill = "",
+       x = NULL,
+       y = NULL) +
+  scale_x_continuous(breaks = seq(0, 100, 10)) +
+  theme(plot.subtitle = element_text(face = "italic"),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position = "top")
+
+```
+
+#### Por escolaridade
+```{r echo=FALSE, message=FALSE, warning=FALSE, dev='CairoPNG'}
+ggplot(subset(bd, !is.na(gpm_corrigido))) +
+  geom_density(aes(x = gpm_corrigido, 
+                   fill = factor(escolaridade, 
+                          levels = c("Analfabeto",
+                                     "1-4 Anos",
+                                     "5-8 Anos",
+                                     "9-11 Anos",
+                                     "> 11 Anos"))), 
+               alpha = .4, size = 1) +
+  geom_rug(aes(x = gpm_corrigido, y = 0), position = position_jitter(height = 0, width = .2), sides = "b") +
+  labs(title = "GPM (corrigido) por escolaridade",
+       subtitle = "Distribuição do GPM corrigido dos respondentes, de acordo com o nível de escolaridade",
+       caption = "Fonte: elaboração própria. \nNúmero de observações: 56.",
+       fill = "",
+       x = NULL,
+       y = NULL) +
+  scale_x_continuous(breaks = seq(0, 100, 10)) +
+  theme(plot.subtitle = element_text(face = "italic"),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position = "top")
+
+```
+

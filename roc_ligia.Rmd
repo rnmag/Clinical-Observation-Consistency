@@ -1,0 +1,48 @@
+---
+title: "Lígia Garcia"
+author: Rafael N. Magalhães
+date: "`r format(Sys.time(), '%d de %B, %Y')`"
+output:
+  html_document:
+    code_folding: hide
+    collapsed: no
+    theme: spacelab
+    toc: yes
+    toc_float: yes
+---
+
+```{r setup, include=FALSE}
+library(pROC)
+library(janitor)
+library(here)
+library(readxl)
+library(dplyr)
+library(Cairo)
+
+
+here() # dir de trabalho
+
+# Leitura e limpeza do banco
+bd <- read_excel("TABELA IAPSI.xlsx") %>%
+  clean_names() %>% 
+  mutate(classif = case_when(gpm_corrigido <= 30 ~ "Baixo",
+                             gpm_corrigido > 30 & gpm_corrigido <= 70 ~ "Médio",
+                             gpm_corrigido > 70 ~ "Alto"))
+
+```
+
+## ROC
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, dev='CairoPNG'}
+plot.roc(
+  bd$auto_percepcao_de_saude,
+  bd$gpm_corrigido,
+  print.auc = TRUE,
+  print.thres = TRUE,
+  levels = c("Regular", "Boa"),
+  quiet = TRUE
+)
+
+
+  
+```
